@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plotting_joseph"
+version = "0.1.0"
+description = "Visualization tools for spatiotemporal Earth observation data (time series and global maps)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "Joseph Wagner", email = "joseph.wagner@geo.tuwien.ac.at" },
+]
+keywords = [
+    "visualization",
+    "timeseries",
+    "maps",
+    "earth-observation",
+    "backscatter",
+    "remote-sensing",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+
+[project.urls]
+Repository = "https://github.com/wagnerjoseph/plotting_joseph"
+Documentation = "https://github.com/wagnerjoseph/plotting_joseph"
+
+[project.optional-dependencies]
+netcdf = ["xarray>=2023.1", "netCDF4>=1.6"]
+geocoding = ["reverse_geocoder>=1.5"]
+coastlines = ["cartopy>=0.22"]
+all = ["plotting_joseph[netcdf,geocoding,coastlines]"]
+dev = ["pytest>=7.0", "ruff>=0.1"]
+
+[dependencies]
+pandas = ">=2.0"
+numpy = ">=1.24"
+matplotlib = ">=3.7"
+pyarrow = ">=12.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/plotting_joseph"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
