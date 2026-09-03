@@ -106,10 +106,24 @@ def test_plot_map_via_master(master):
     plt.close(fig)
 
 
-def test_plot_map_requires_lookup_or_master(tmp_path):
+def test_plot_map_requires_master(tmp_path):
     data = pd.DataFrame({"location_id": [2000], "backscatter40": [-12.0]})
-    with pytest.raises(ValueError, match="lookup"):
-        plot_map(data=data, var="backscatter40", show_plot=False)
+    with pytest.raises(ValueError, match="master_lookup"):
+        plot_map(data=data, var="backscatter40", grid_sampling=0.5, show_plot=False)
+
+
+def test_plot_map_requires_grid_sampling(master):
+    cache, master_path = master
+    data = pd.DataFrame({"location_id": [2000], "backscatter40": [-12.0]})
+    with pytest.raises(ValueError, match="grid_sampling"):
+        plot_map(
+            data=data,
+            var="backscatter40",
+            master_lookup=master_path,
+            grid_sampling=None,
+            cache_dir=cache,
+            show_plot=False,
+        )
 
 
 def test_timeseries_via_master(master):

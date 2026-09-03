@@ -96,28 +96,18 @@ from plotting_joseph import plot_map
 plot_map(
     data=df,                      # DataFrame with location_id + a value column
     var="backscatter40",
-    lookuptable_path="lookup_tables/location_ids_gridSampling_k1.parquet",
-    title="Global Backscatter",
-    save_path="figures/global_map.png",
-)
-```
-
-Alternatively, let `plot_map` build the grid/map lookup automatically from the
-master lookup. The lookup is created once per combination of geometric
-parameters (`grid_sampling`, `extent`, `k`) and reused afterwards:
-
-```python
-plot_map(
-    data=df,
-    var="backscatter40",
-    master_lookup="lookup_tables/location_id_to_tile_id.parquet",
+    master_lookup="lookup_tables/location_id_to_tile_id.parquet",  # required
     extent=(-180, 180, -60, 85),
-    grid_sampling=0.5,
+    grid_sampling=0.5,            # required
     cache_dir="lookups/",
     title="Global Backscatter",
     save_path="figures/global_map.png",
 )
 ```
+
+`plot_map` builds the grid/map lookup automatically from the master lookup. The
+lookup is created once per combination of geometric parameters (`grid_sampling`,
+`extent`, `k`) and reused afterwards.
 
 ## Auto-generated lookups
 

@@ -99,10 +99,12 @@ LookupTableCreator.from_grid(
 
 ## Required for maps: the grid-sampling lookup
 
-`plot_map` additionally needs a lookup that maps `location_id` -> `pixel_id`
-on the regular grid you want to render. The filename **must** follow the
-pattern `..._gridSampling_kN.parquet` where `N` is the number of aggregated
-neighbors (`1` = direct 1:1 mapping).
+`plot_map` builds this lookup automatically from the master lookup, mapping
+`location_id` -> `pixel_id` on the regular grid you want to render. The
+auto-generated filename follows the pattern
+`gridSampling_<res>_extent_<lon0>_<lon1>_<lat0>_<lat1>_kN.parquet` where `N` is
+the number of aggregated neighbors (`1` = direct 1:1 mapping) and `<res>` is
+the grid resolution in degrees.
 
 ### Schema (`k1`)
 

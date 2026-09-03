@@ -105,7 +105,6 @@ def _make_title(var: str, stat: str, month: str | None = None, k: int = 1) -> st
 def plot_map(
     data: pd.DataFrame,
     var: str,
-    lookuptable_path: str | Path | None = None,
     master_lookup: str | Path | None = None,
     cache_dir: str | Path | None = None,
     month: str | None = None,
@@ -136,17 +135,11 @@ def plot_map(
         columns and the variable to plot.
     var : str
         Column name of the variable to plot.
-    lookuptable_path : str or Path, optional
-        Path to the lookup table mapping ``location_id`` -> ``pixel_id`` on a
-        regular grid. The grid resolution is parsed from the filename using
-        the pattern ``..._gridSampling_kN.parquet`` (``N`` = number of
-        aggregated neighbors, ``1`` for a direct 1:1 mapping). If None, it is
-        auto-generated from ``master_lookup``.
-    master_lookup : str or Path, optional
+    master_lookup : str or Path, (required)
         Master lookup parquet (``location_id`` -> tile with ``lat``/``lon``).
-        Used to auto-build the grid/map lookup when ``lookuptable_path`` is
-        None. The generated lookup is cached (see ``cache_dir``) and reused
-        for identical ``grid_sampling`` / ``extent`` / ``k``.
+        The grid/map lookup is built from it (see ``cache_dir``) and reused for
+        identical ``grid_sampling`` / ``extent`` / ``k``. Required; raises a
+        clear error if missing.
     cache_dir : str or Path, optional
         Where auto-generated lookups are stored/reused. If None, a
         ``generated_lookups`` folder next to the master lookup is used.
@@ -165,10 +158,11 @@ def plot_map(
         If True, center the color scale at 0 (symmetric range).
     extent : tuple, default=(-180, 180, -60, 85)
         Bounding box ``(lon_min, lon_max, lat_min, lat_max)``.
-    grid_sampling : float, optional
-        Grid resolution in degrees. If None, parsed from the lookup filename
-        pattern ``..._gridSampling_<res>_kN.parquet``. Recommended to pass
-        explicitly for clarity.
+    grid_sampling : float, (required)
+        Grid resolution in degrees used to build the grid lookup. Required;
+        raises a clear error if missing.
+    k : int, default=1
+        Number of aggregated neighbors per pixel (``1`` = direct 1:1 mapping).
     value_range : tuple, optional
         Fixed color range ``(vmin, vmax)``; values outside are clipped. If
         None, uses the data min/max.
@@ -208,43 +202,29 @@ def plot_map(
 
     data_sub = df[["location_id", var]]
 
-    # Build the grid/map lookup from the master lookup when none was given.
-    if lookuptable_path is None:
-        if master_lookup is None:
-            raise ValueError(
-                "plot_map needs a lookup table. Pass 'lookuptable_path' directly "
-                "or provide 'master_lookup' to auto-generate one."
-            )
-        from ..data import ensure_grid_lookup
-
-        lookuptable_path = ensure_grid_lookup(
-            master_lookup,
-            grid_sampling=grid_sampling,
-            extent=extent,
-            k=k,
-            cache_dir=cache_dir,
+    # The map grid lookup is always derived from the master lookup.
+    if master_lookup is None:
+        raise ValueError(
+            "plot_map requires 'master_lookup' (a location_id -> tile_id "
+            "parquet with lat/lon) to build the map grid lookup."
+        )
+    if grid_sampling is None or grid_sampling <= 0:
+        raise ValueError(
+            "plot_map requires a positive 'grid_sampling' (degrees) to build "
+            "the map grid lookup."
         )
 
+    from ..data import ensure_grid_lookup
+
+    lookuptable_path = ensure_grid_lookup(
+        master_lookup,
+        grid_sampling=grid_sampling,
+        extent=extent,
+        k=k,
+        cache_dir=cache_dir,
+    )
+
     lut = pd.read_parquet(lookuptable_path)
-
-    name_parts = Path(lookuptable_path).stem.split("_")
-    if k == 1:
-        # honour k parsed from a user-supplied filename when not explicit
-        try:
-            k = int(name_parts[-1][1:] if name_parts[-1].startswith("k") else 1)
-        except ValueError:
-            k = 1
-
-    if grid_sampling is None:
-        # Try to recover resolution from ..._gridSampling_<res>_kN.parquet
-        try:
-            gi = name_parts.index("gridSampling")
-            grid_sampling = float(name_parts[gi + 1])
-        except (ValueError, IndexError) as e:  # pragma: no cover
-            raise ValueError(
-                "Could not parse 'grid_sampling' from filename. Pass it "
-                "explicitly via the grid_sampling parameter."
-            ) from e
 
     location_to_pixel = _build_pixel_mapping(lut, k)
 

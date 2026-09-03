@@ -2,7 +2,7 @@
 
 See `src/plotting_joseph/plotting/maps.py` for the full docstring.
 
-## `plot_map(data, var, lookuptable_path=None, master_lookup=None, ...)`
+## `plot_map(data, var, master_lookup, ...)`
 
 Plots a gridded global map of a variable with a histogram colorbar.
 
@@ -12,10 +12,9 @@ Plots a gridded global map of a variable with a histogram colorbar.
 |-------------------|----------------------------------------------------------------------|
 | `data`            | DataFrame with `location_id` (and optional `time`) + the value column. |
 | `var`             | column name of the value to plot.                                    |
-| `lookuptable_path`| grid lookup table filename matching `..._gridSampling_kN.parquet`.   |
-| `master_lookup`   | master lookup (`location_id` -> tile with `lat`/`lon`); auto-generates the grid lookup when `lookuptable_path` is None. |
+| `master_lookup`   | *(required)* master lookup (`location_id` -> tile with `lat`/`lon`); the grid lookup is built from it. |
 | `cache_dir`       | where auto-generated lookups are stored/reused (default: `generated_lookups/` next to the master lookup). |
-| `grid_sampling`   | grid resolution (°) used to build/interpret the grid lookup.        |
+| `grid_sampling`   | *(required)* grid resolution (°) used to build the grid lookup.       |
 | `extent`          | `(lon_min, lon_max, lat_min, lat_max)`.                             |
 | `k`               | number of aggregated neighbors per pixel (`1` = 1:1 mapping).       |
 | `month`           | filter to a month (e.g. `"2020-01"`) using the `time` column.         |
@@ -32,32 +31,17 @@ Plots a gridded global map of a variable with a histogram colorbar.
 
 Returns the matplotlib figure.
 
-> When both are available `lookuptable_path` takes precedence. Without it, the
-> grid lookup is auto-generated from `master_lookup` for the given geometric
-> parameters and **reused for identical calls** — the lookup filename encodes
-> `grid_sampling`, `extent` and `k`.
+> The grid lookup is auto-built from `master_lookup` and **reused for identical
+> calls** — the lookup filename encodes `grid_sampling`, `extent` and `k`, so
+> different parameter combinations produce separate cached files.
 
-### Example (explicit lookup)
+### Example
 
 ```python
 from plotting_joseph import plot_map
 
 fig = plot_map(
     data=df,                        # location_id + a value column
-    var="backscatter40",
-    lookuptable_path="lookup_tables/gridSampling_k1.parquet",
-    plot_robust=(2, 98),
-    title="Global Backscatter (2-98%)",
-    save_path="figures/global_backscatter.png",
-    add_coastlines=True,
-)
-```
-
-### Example (auto-generated from a master lookup)
-
-```python
-fig = plot_map(
-    data=df,
     var="backscatter40",
     master_lookup="lookup_tables/location_id_to_tile_id.parquet",
     extent=(-180, 180, -60, 85),
