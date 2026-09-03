@@ -15,10 +15,18 @@ Creates one multi-panel figure per selected location.
 | `location_ids`       | locations to plot; `None` selects random ones via `random_points`.     |
 | `add_closest_points` | `(k, max_km)` for nearest-neighbor background series.                  |
 | `lookup_tables`      | a `LookupTables` config for `countries` / `neighbors_dir`.             |
+| `master_lookup`      | master lookup (`location_id` -> tile with `lat`/`lon`); auto-generates `countries` and (when `add_closest_points` is used) the neighbor lookup. |
+| `cache_dir`          | where auto-generated lookups are stored/reused (default: `generated_lookups/` next to the master lookup). |
+| `generate_countries` | create the country lookup from the web when missing (default `True`). |
 | `save_dir`           | save each location as `{save_dir}/{location_id}.png`.                  |
 | `show_plot`          | display figures interactively.                                         |
 
 Returns a list of matplotlib figures (one per location).
+
+> When `master_lookup` is given the country lookup is auto-generated from the
+> web when it doesn't exist yet, and the neighbor lookup is generated (and
+> reused) when `add_closest_points` is set. If `lookup_tables` is provided it
+> takes precedence over `master_lookup`.
 
 ### var-spec options
 
@@ -59,6 +67,24 @@ Timeseries.plot_time_series(
             "compute_corr": True,
         },
     ],
+    save_dir="figures",
+)
+```
+
+### Example (auto-generated lookups from a master)
+
+```python
+Timeseries.plot_time_series(
+    data=df,
+    location_ids=[2156788],
+    var_specs=[
+        {"name": "backscatter40", "color": "royalblue"},
+        {"name": "lai", "color": "forestgreen", "add_to": "backscatter40",
+         "add_second_axis": True, "compute_corr": True},
+    ],
+    master_lookup="lookup_tables/location_id_to_tile_id.parquet",
+    add_closest_points=(4, 300.0),
+    cache_dir="lookups/",
     save_dir="figures",
 )
 ```

@@ -16,8 +16,10 @@ agnostic and easy to drop into any project.
   robust color ranges, markers and optional coastlines.
 - **Flexible data loading** (`DataLoader`) — parquet, CSV, or any in-memory
   DataFrame with automatic column mapping/validation.
-- **Lookup table creation** (`LookupTableCreator`) — generate the geographic
-  lookups the plots need from your own data.
+- **Auto-generated lookup tables** — point the plotting functions at a single
+  master lookup (`location_id` → `tile_id` with lat/lon) and the derived lookups
+  they need (countries, grid/map, neighbors) are created **on demand**, cached,
+  and reused for identical parameters.
 
 ## Installation
 
@@ -66,6 +68,26 @@ Timeseries.plot_time_series(
 )
 ```
 
+The country names shown in the titles come from a lookup that is auto-generated
+from the web (reverse geocoding) when it doesn't exist yet — just point the call
+at your master `location_id_to_tile_id` file:
+
+```python
+Timeseries.plot_time_series(
+    data=df,
+    location_ids=[2156788],
+    var_specs=[
+        {"name": "backscatter40", "color": "royalblue"},
+        {"name": "lai", "color": "forestgreen", "add_to": "backscatter40",
+         "add_second_axis": True, "compute_corr": True},
+    ],
+    master_lookup="lookup_tables/location_id_to_tile_id.parquet",
+    add_closest_points=(4, 300.0),   # auto-generates the neighbor lookup too
+    cache_dir="lookups/",
+    save_dir="figures",
+)
+```
+
 ### Plot a global map
 
 ```python
@@ -79,6 +101,44 @@ plot_map(
     save_path="figures/global_map.png",
 )
 ```
+
+Alternatively, let `plot_map` build the grid/map lookup automatically from the
+master lookup. The lookup is created once per combination of geometric
+parameters (`grid_sampling`, `extent`, `k`) and reused afterwards:
+
+```python
+plot_map(
+    data=df,
+    var="backscatter40",
+    master_lookup="lookup_tables/location_id_to_tile_id.parquet",
+    extent=(-180, 180, -60, 85),
+    grid_sampling=0.5,
+    cache_dir="lookups/",
+    title="Global Backscatter",
+    save_path="figures/global_map.png",
+)
+```
+
+## Auto-generated lookups
+
+Pass a **master lookup** (`location_id_to_tile_id.parquet` with `location_id`,
+`lat`, `lon` and optional `tile_id`) to the plotting functions and the derived
+lookups are **created on demand**, only when they don't already exist:
+
+* **countries** (for time-series titles) — via reverse geocoding from the web
+* **grid/map lookup** (for `plot_map`) — built from the lat/lon coordinates,
+  keyed by `grid_sampling` + `extent` + `k`
+* **neighbors** (for `add_closest_points`) — per-tile nearest neighbors, keyed
+  by `k` + `max_distance_km`
+
+Generated lookups are cached to `cache_dir` (default: a `generated_lookups/`
+folder next to the master lookup) and **reused whenever the same parameters are
+passed again**. The geometric parameters are encoded in the lookup filename, so
+different grids/extents produce separate cached files.
+
+The `ensure_*` helpers (`ensure_location_ids`, `ensure_country_lookup`,
+`ensure_grid_lookup`, `ensure_neighbor_lookup`) expose the same generation for
+manual use.
 
 ## Documentation
 
