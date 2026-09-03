@@ -7,7 +7,7 @@ Run:
 import numpy as np
 import pandas as pd
 
-from plotting_joseph import Timeseries
+from plotting_joseph import plot_time_series
 
 # ---------------------------------------------------------------------------
 # 1. Build some synthetic data (use DataLoader().load(...) in practice)
@@ -43,7 +43,7 @@ var_specs = [
 # ---------------------------------------------------------------------------
 # 3. Plot
 # ---------------------------------------------------------------------------
-figs = Timeseries.plot_time_series(
+figs = plot_time_series(
     data=df,
     location_ids=[2156788],
     var_specs=var_specs,

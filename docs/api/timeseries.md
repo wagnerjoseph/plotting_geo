@@ -2,9 +2,17 @@
 
 See `src/plotting_joseph/plotting/timeseries.py` for the full docstring.
 
-## `Timeseries.plot_time_series(data, ...)`
+## `plot_time_series(data, ...)`
 
 Creates one multi-panel figure per selected location.
+
+**Recommended usage:** import the module-level function for a clean API that mirrors `plot_map`:
+
+```python
+from plotting_joseph import plot_time_series
+
+plot_time_series(data=df, location_ids=[...], var_specs=[...])
+```
 
 ### Key parameters
 
@@ -55,9 +63,9 @@ Returns a list of matplotlib figures (one per location).
 ### Example
 
 ```python
-from plotting_joseph import Timeseries
+from plotting_joseph import plot_time_series
 
-Timeseries.plot_time_series(
+plot_time_series(
     data=df,
     location_ids=[2156788, 2156790],
     var_specs=[
@@ -78,7 +86,9 @@ Timeseries.plot_time_series(
 ### Example (auto-generated lookups from a master)
 
 ```python
-Timeseries.plot_time_series(
+from plotting_joseph import plot_time_series
+
+plot_time_series(
     data=df,
     location_ids=[2156788],
     var_specs=[
@@ -91,6 +101,8 @@ Timeseries.plot_time_series(
     save_dir="figures",
 )
 ```
+
+**Alternative (backward-compatible):** `Timeseries.plot_time_series(...)` also works.
 
 ## `Timeseries.compute_correlation(df, var1, var2, methods=("pearson", "spearman"))`
 

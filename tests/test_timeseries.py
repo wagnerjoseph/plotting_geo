@@ -6,7 +6,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from plotting_joseph import LookupTables, Timeseries
+from plotting_joseph import LookupTables, Timeseries, plot_time_series
 
 
 def test_compute_correlation_both_methods(sample_timeseries_data):
@@ -119,4 +119,32 @@ def test_plot_time_series_lookup_tables(tmp_path, sample_timeseries_data, sample
         lookup_tables=LookupTables(countries=countries),
     )
     assert "Austria" in figs[0]._suptitle.get_text()
+    plt.close("all")
+
+
+def test_plot_time_series_module_level(sample_timeseries_data):
+    """Test that the module-level plot_time_series function works."""
+    figs = plot_time_series(
+        data=sample_timeseries_data,
+        location_ids=[1],
+        var_specs=[
+            {"name": "backscatter40", "color": "royalblue"},
+            {
+                "name": "lai",
+                "color": "forestgreen",
+                "add_to": "backscatter40",
+                "add_second_axis": True,
+                "compute_corr": True,
+            },
+        ],
+    )
+    assert len(figs) == 1
+    # correlation annotation present
+    texts = [
+        t.get_text()
+        for ax in figs[0].axes
+        for t in ax.texts
+        if "pearson:" in t.get_text()
+    ]
+    assert len(texts) > 0
     plt.close("all")

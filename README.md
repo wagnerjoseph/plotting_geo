@@ -6,7 +6,7 @@ agnostic and easy to drop into any project.
 
 ## Features
 
-- **Time series** (`Timeseries.plot_time_series`) — multi-panel plots with:
+- **Time series** (`plot_time_series`) — multi-panel plots with:
   - overlays on a shared or secondary y-axis
   - Pearson / Spearman correlation annotations
   - threshold shading (per-panel or across all panels)
@@ -23,7 +23,13 @@ agnostic and easy to drop into any project.
 
 ## Installation
 
-From the repository root:
+### Install with uv (recommended)
+
+```bash
+uv add "plotting_joseph[all] @ git+https://github.com/wagnerjoseph/plotting_geo.git"
+```
+
+### Install from local repository
 
 ```bash
 pip install -e .
@@ -46,12 +52,12 @@ Extras:
 ### Load data and plot time series
 
 ```python
-from plotting_joseph import DataLoader, Timeseries
+from plotting_joseph import DataLoader, plot_time_series
 
 # Normalizes + validates columns (rename yours via column_map)
 df = DataLoader().load("monthly_mean/0009.parquet")
 
-Timeseries.plot_time_series(
+plot_time_series(
     data=df,
     location_ids=[2156788],
     var_specs=[

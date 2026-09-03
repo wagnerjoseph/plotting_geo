@@ -7,7 +7,7 @@ Run:
 import numpy as np
 import pandas as pd
 
-from plotting_joseph import DataLoader, Timeseries
+from plotting_joseph import DataLoader, plot_time_series
 
 # ---------------------------------------------------------------------------
 # Simulate data with non-canonical column names
@@ -49,7 +49,7 @@ var_specs = [
         "compute_corr": True,
     },
 ]
-Timeseries.plot_time_series(
+plot_time_series(
     data=df,
     location_ids=[7],
     var_specs=var_specs,

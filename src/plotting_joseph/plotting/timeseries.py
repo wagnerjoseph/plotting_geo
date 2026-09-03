@@ -869,3 +869,90 @@ class Timeseries:
             figures.append(fig)
 
         return figures
+
+
+# -----------------------------------------------------------------------------
+# Module-level public API (mirrors plot_map style)
+# -----------------------------------------------------------------------------
+def plot_time_series(
+    data,
+    var_specs: list[dict] | None = None,
+    location_ids: Iterable[int] | None = None,
+    random_points: tuple[int, int] = (2, 123),
+    add_closest_points: tuple[int, float] = (0, 0),
+    lookup_tables: LookupTables | None = None,
+    save_dir: str | Path | None = None,
+    figsize: tuple[int, int] = (10, 5),
+    font_scale: float = 1.0,
+    show_plot: bool = False,
+) -> list:
+    """Plot multi-panel time series for selected locations.
+
+    Creates one multi-panel figure per selected location. Each variable is
+    drawn on its own panel; overlays (via ``add_to``) can be placed on an
+    existing panel, optionally on a secondary y-axis.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame or dask.DataFrame
+        Time series data with at least ``location_id`` and ``time`` columns
+        plus the numeric variables to plot.
+    var_specs : list of dict, optional
+        Variable specifications (see notes below). If None, numeric
+        columns are inferred automatically.
+    location_ids : iterable of int, optional
+        Locations to plot. If None, ``random_points`` locations are chosen.
+    random_points : tuple, default=(2, 123)
+        ``(n_points, seed)`` for random location selection (only when
+        ``location_ids`` is None).
+    add_closest_points : tuple, default=(0, 0)
+        ``(k_closest, max_distance_km)`` enabling nearest-neighbor
+        background series. Set to ``(0, 0)`` to disable.
+    lookup_tables : LookupTables, optional
+        Provides the ``location_ids`` table (for the location->tile_id
+        mapping), ``countries`` pickle, and ``neighbors_dir`` directory.
+    save_dir : str or Path, optional
+        Save each location figure as ``{save_dir}/{location_id}.png``.
+    figsize : tuple, default=(10, 5)
+        Base figure size; height scales with the number of panels.
+    font_scale : float, default=1.0
+        Font-size scale factor.
+    show_plot : bool, default=False
+        If True, display figures interactively.
+
+    Returns
+    -------
+    list
+        The matplotlib figure objects (one per location).
+
+    Notes on ``var_specs``
+    ----------------------
+    Each spec dict may contain:
+        - 'name' (required): variable column name.
+        - 'label': legend / y-axis label.
+        - 'color': line color.
+        - 'line_width', 'alpha': line styling.
+        - 'plotstyle': 'line', 'points' or 'both'.
+        - 'show_seasons': overlay JJA/DJF markers.
+        - 'interpolate': interpolate NaNs.
+        - 'transforms': list of dicts (e.g. {'type': 'rolling_mean', 'window': 12}).
+        - 'add_to': parent variable to overlay onto.
+        - 'add_second_axis': put overlay on a right-hand secondary y-axis.
+        - 'align_zero': align the zero points of both axes.
+        - 'compute_corr': show Pearson+Spearman correlation with the parent.
+        - 'lower_treshold': (value, color) shade where values below value.
+        - 'upper_treshold': (value, color) shade where values above value.
+        - 'apply_shading_to_all': extend threshold shading to all panels.
+    """
+    return Timeseries.plot_time_series(
+        data=data,
+        var_specs=var_specs,
+        location_ids=location_ids,
+        random_points=random_points,
+        add_closest_points=add_closest_points,
+        lookup_tables=lookup_tables,
+        save_dir=save_dir,
+        figsize=figsize,
+        font_scale=font_scale,
+        show_plot=show_plot,
+    )

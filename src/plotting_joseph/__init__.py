@@ -14,7 +14,7 @@ from .data import (
     ensure_neighbor_lookup,
     validate_lookup_tables,
 )
-from .plotting import Timeseries, plot_map
+from .plotting import Timeseries, plot_map, plot_time_series
 
 __version__ = "0.1.0"
 
@@ -29,5 +29,6 @@ __all__ = [
     "ensure_location_ids",
     "ensure_neighbor_lookup",
     "plot_map",
+    "plot_time_series",
     "validate_lookup_tables",
 ]
