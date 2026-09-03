@@ -24,7 +24,6 @@ plot_time_series(data=df, location_ids=[...], var_specs=[...])
 | `add_closest_points` | `(k, max_km)` for nearest-neighbor background series.                  |
 | `lookup_tables`      | a `LookupTables` config for `countries` / `neighbors_dir`.             |
 | `master_lookup`      | master lookup (`location_id` -> tile with `lat`/`lon`); auto-generates `countries` and (when `add_closest_points` is used) the neighbor lookup. |
-| `generate_countries` | create the country lookup from the web when missing (default `True`). |
 | `save_dir`           | save each location as `{save_dir}/{location_id}.png`.                  |
 | `show_plot`          | display figures interactively.                                         |
 

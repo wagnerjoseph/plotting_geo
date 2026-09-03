@@ -9,6 +9,7 @@ nearest-neighbor background series.
 from __future__ import annotations
 
 import pickle
+import warnings
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -428,7 +429,6 @@ class Timeseries:
         add_closest_points: tuple[int, float] = (0, 0),
         lookup_tables: LookupTables | None = None,
         master_lookup: str | Path | None = None,
-        generate_countries: bool = True,
         save_dir: str | Path | None = None,
         figsize: tuple[int, int] = (10, 5),
         font_scale: float = 1.0,
@@ -461,10 +461,11 @@ class Timeseries:
             mapping), ``countries`` pickle, and ``neighbors_dir`` directory.
         master_lookup : str or Path, optional
             Master lookup parquet (``location_id`` -> tile with ``lat``/``lon``).
-            Alternative to ``lookup_tables``. The countries lookup (via the
-            web) and, when ``add_closest_points`` is used, the neighbor lookup
-            are generated on demand from it and cached in a ``generated_lookups``
-            folder next to the master lookup.
+            Alternative to ``lookup_tables``. The countries lookup is automatically
+            generated from the web (reverse geocoding) and cached for reuse; if
+            generation fails, country names fall back to "Unknown" with a warning.
+            When ``add_closest_points`` is used, the neighbor lookup is also
+            generated on demand and cached.
         save_dir : str or Path, optional
             Save each location figure as ``{save_dir}/{location_id}.png``.
         figsize : tuple, default=(10, 5)
@@ -516,20 +517,19 @@ class Timeseries:
         # --- Generate lookup tables from the master lookup (on demand) ---
         if lookup_tables is None and master_lookup is not None:
             from ..data import (
-                _lookup_cache_dir,
                 ensure_country_lookup,
                 ensure_location_ids,
                 ensure_neighbor_lookup,
             )
 
             location_ids_path = ensure_location_ids(master_lookup)
-            # Use cached countries.pkl if it exists; generate from web only if generate_countries=True
-            countries_cache = _lookup_cache_dir(master_lookup) / "countries.pkl"
-            if generate_countries:
+            # Countries are always included; fall back to "Unknown" if generation fails
+            try:
                 countries = ensure_country_lookup(master_lookup)
-            elif countries_cache.exists():
-                countries = countries_cache
-            else:
+            except (ImportError, OSError) as e:
+                warnings.warn(
+                    f"Could not generate country lookup; country names will be 'Unknown'. {e}"
+                )
                 countries = None
             neighbors_dir = (
                 ensure_neighbor_lookup(master_lookup, k_closest, max_distance_km)
@@ -892,7 +892,6 @@ def plot_time_series(
     add_closest_points: tuple[int, float] = (0, 0),
     lookup_tables: LookupTables | None = None,
     master_lookup: str | Path | None = None,
-    generate_countries: bool = True,
     save_dir: str | Path | None = None,
     figsize: tuple[int, int] = (10, 5),
     font_scale: float = 1.0,
@@ -926,11 +925,8 @@ def plot_time_series(
     master_lookup : str or Path, optional
         Master lookup parquet (``location_id`` -> tile with ``lat``/``lon``).
         If provided and ``lookup_tables`` is None, the country lookup is
-        auto-generated from the web (when ``generate_countries=True``) and
-        cached for reuse.
-    generate_countries : bool, default=True
-        If True and ``master_lookup`` is given, generate the country lookup
-        from the web (reverse geocoding) when it doesn't already exist.
+        auto-generated from the web (reverse geocoding) and cached for reuse.
+        If generation fails, country names fall back to "Unknown" with a warning.
     save_dir : str or Path, optional
         Save each location figure as ``{save_dir}/{location_id}.png``.
     figsize : tuple, default=(10, 5)
@@ -972,7 +968,6 @@ def plot_time_series(
         add_closest_points=add_closest_points,
         lookup_tables=lookup_tables,
         master_lookup=master_lookup,
-        generate_countries=generate_countries,
         save_dir=save_dir,
         figsize=figsize,
         font_scale=font_scale,

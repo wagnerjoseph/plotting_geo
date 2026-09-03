@@ -178,7 +178,6 @@ def test_plot_time_series_module_level_with_master_lookup(tmp_path, sample_times
         location_ids=[1],
         var_specs=[{"name": "backscatter40", "color": "royalblue"}],
         master_lookup=master_path,
-        generate_countries=False,  # use the pre-seeded countries.pkl
     )
     assert len(figs) == 1
     title = figs[0]._suptitle.get_text()

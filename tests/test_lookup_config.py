@@ -181,13 +181,19 @@ def test_timeseries_via_master(master):
         )
     ts = pd.concat(frames, ignore_index=True)
 
+    # Pre-seed countries.pkl to keep test offline-deterministic
+    countries_path = Path(master_path).parent / "countries.pkl"
+    import pickle
+
+    with open(countries_path, "wb") as f:
+        pickle.dump({loc_ids[0]: "TestCountry"}, f)
+
     figs = Timeseries.plot_time_series(
         data=ts,
         location_ids=[loc_ids[0]],
         var_specs=[{"name": "backscatter40", "color": "royalblue"}],
         add_closest_points=(3, 500.0),
         master_lookup=master_path,
-        generate_countries=False,
         show_plot=False,
     )
     assert len(figs) == 1
