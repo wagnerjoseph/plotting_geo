@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from plotting_joseph import LookupTables, Timeseries, plot_time_series
 
@@ -147,4 +148,39 @@ def test_plot_time_series_module_level(sample_timeseries_data):
         if "pearson:" in t.get_text()
     ]
     assert len(texts) > 0
+    plt.close("all")
+
+
+def test_plot_time_series_module_level_with_master_lookup(tmp_path, sample_timeseries_data):
+    """Test that module-level plot_time_series accepts master_lookup and shows country."""
+    import pickle
+
+    # Build a small master lookup parquet with lat/lon for location_id=1
+    master_path = tmp_path / "master_lookup.parquet"
+    master_df = pd.DataFrame(
+        {
+            "location_id": [1, 2],
+            "lat": [48.0, 51.0],
+            "lon": [16.0, 10.0],
+            "tile_id": ["tile0", "tile0"],
+        }
+    )
+    master_df.to_parquet(master_path, index=False)
+
+    # Pre-seed countries.pkl next to master (the default cache location)
+    countries_path = tmp_path / "countries.pkl"
+    with open(countries_path, "wb") as f:
+        pickle.dump({1: "Austria", 2: "Germany"}, f)
+
+    # Call module-level plot_time_series with master_lookup
+    figs = plot_time_series(
+        data=sample_timeseries_data,
+        location_ids=[1],
+        var_specs=[{"name": "backscatter40", "color": "royalblue"}],
+        master_lookup=master_path,
+        generate_countries=False,  # use the pre-seeded countries.pkl
+    )
+    assert len(figs) == 1
+    title = figs[0]._suptitle.get_text()
+    assert "Austria" in title
     plt.close("all")
