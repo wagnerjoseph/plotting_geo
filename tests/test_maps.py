@@ -65,3 +65,36 @@ def test_plot_map_basic(tmp_path):
     import matplotlib.pyplot as plt
 
     plt.close("all")
+
+
+def test_plot_map_auto_figsize(tmp_path):
+    """Verify that figsize=None auto-derives from extent so the map is not distorted."""
+    import matplotlib.pyplot as plt
+
+    master, master_df = _make_master(tmp_path)
+    data = pd.DataFrame(
+        {
+            "location_id": master_df["location_id"],
+            "backscatter40": np.random.RandomState(0).normal(size=len(master_df)),
+        }
+    )
+
+    # Default extent (-180, 180, -60, 85) => lon_span=360, lat_span=145, ratio ~2.48
+    fig = plot_map(
+        data=data,
+        var="backscatter40",
+        master_lookup=master,
+        grid_sampling=1.0,
+        figsize=None,  # auto-derive
+        show_plot=False,
+    )
+    w, h = fig.get_size_inches()
+    # The auto-derived figsize should have width > height (world is wider than tall)
+    assert w > h
+    # Ratio should be roughly proportional to lon:lat span (~2.48), accounting for
+    # the ~15% colorbar compensation factor
+    expected_ratio = (360.0 / 145.0) / 0.85
+    actual_ratio = w / h
+    assert abs(actual_ratio - expected_ratio) < 0.5, f"Expected ratio ~{expected_ratio}, got {actual_ratio}"
+
+    plt.close("all")

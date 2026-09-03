@@ -121,7 +121,7 @@ def plot_map(
     add_coastlines: bool = False,
     add_marker: object | None = None,
     dpi: int = 300,
-    figsize: tuple[int, int] | None = (15, 6),
+    figsize: tuple[int, int] | None = None,
     font_scale: float = 1.0,
     show_plot: bool = False,
 ):
@@ -172,7 +172,9 @@ def plot_map(
     dpi : int, default=300
         Resolution for the saved figure.
     figsize : tuple, optional
-        Figure size ``(width, height)``.
+        Figure size ``(width, height)``. If None (default), automatically
+        derived from the ``extent`` so the map is not distorted (width
+        proportional to lon span, height proportional to lat span).
     font_scale : float, default=1.0
         Font-size scale factor.
     show_plot : bool, default=False
@@ -266,6 +268,17 @@ def plot_map(
     flat_data = flat_data[~np.isnan(flat_data)]
 
     cmap_obj = plt.get_cmap(cmap)
+
+    # Auto-derive figsize from extent if not specified, so the map is not distorted
+    if figsize is None:
+        base_height = 6.0
+        lon_span = lon_max - lon_min
+        lat_span = lat_max - lat_min
+        geo_aspect = lon_span / lat_span if lat_span > 0 else 1.0
+        # The right-hand colorbar/histogram strip takes ~15% of the figure
+        # width; widen the figure so the map axes keep the true lon:lat aspect.
+        map_width_fraction = 0.85
+        figsize = (base_height * geo_aspect / map_width_fraction, base_height)
 
     fig, ax = plt.subplots(figsize=figsize)
 
