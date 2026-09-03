@@ -82,7 +82,7 @@ Timeseries.plot_time_series(
          "add_second_axis": True, "compute_corr": True},
     ],
     master_lookup="lookup_tables/location_id_to_tile_id.parquet",
-    add_closest_points=(4, 300.0),   # auto-generates the neighbor lookup too
+    add_closest_points=(4, 100.0),   # auto-generates the neighbor lookup too
     save_dir="figures",
 )
 ```

@@ -28,7 +28,7 @@ name, so different grids/neighbor requests produce separate cached files:
 
 ```
 map_lookups/gridSampling_0.5_extent_-180_180_-60_85_k1.parquet
-neighbor_lookups/neighbors_k8_maxd300/location_id_to_tile_id_0009.parquet
+neighbor_lookups/neighbors_k8_maxd100/location_id_to_tile_id_0009.parquet
 ```
 
 The same generation is available as reusable helpers:
@@ -44,8 +44,11 @@ ensure_country_lookup("lookup_tables/location_id_to_tile_id.parquet")
 ensure_grid_lookup("lookup_tables/location_id_to_tile_id.parquet",
                    grid_sampling=0.5, extent=(-180, 180, -60, 85), k=1)
 ensure_neighbor_lookup("lookup_tables/location_id_to_tile_id.parquet",
-                       k_neighbors=8, max_distance_km=300.0)
+                       k_neighbors=8, max_distance_km=100.0)
 ```
+
+> The neighbor search distance is capped at **100 km** so the generated lookup
+> files stay small.
 
 The manual workflows below describe the file formats in case you want to build
 the lookups yourself.

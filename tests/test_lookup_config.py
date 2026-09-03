@@ -52,7 +52,17 @@ def test_output_layout(master):
 
     nbr = ensure_neighbor_lookup(master_path, k_neighbors=4, max_distance_km=500.0, cache_dir=cache)
     assert nbr.parent.name == "neighbor_lookups"
-    assert nbr.name.startswith("neighbors_k4_maxd500")
+    assert nbr.name.startswith("neighbors_k4_maxd100")
+
+
+def test_neighbor_distance_capped_at_100(master):
+    """max_distance_km > 100 is clamped to 100 km in the generated lookup."""
+    cache, master_path = master
+    nbr = ensure_neighbor_lookup(master_path, k_neighbors=4, max_distance_km=500.0, cache_dir=cache)
+    assert nbr.name.startswith("neighbors_k4_maxd100")
+    for f in nbr.glob("*.parquet"):
+        df = pd.read_parquet(f)
+        assert (df["distance_km"] <= 100.0).all()
 
 
 def test_ensure_grid_lookup(master):

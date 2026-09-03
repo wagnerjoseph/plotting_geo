@@ -26,6 +26,9 @@ DEFAULT_ALIASES: dict[str, list[str]] = {
 # Canonical columns that are mandatory regardless of use-case.
 _REQUIRED = ["time", "location_id"]
 
+# Upper bound (km) for nearest-neighbor lookups, so generated files stay small.
+MAX_NEIGHBOR_DISTANCE_KM = 100.0
+
 
 class DataLoader:
     """Load and normalise data from common storage formats.
@@ -506,8 +509,11 @@ def ensure_neighbor_lookup(
     """Build (or reuse) the per-tile neighbor lookup directory.
 
     The directory name encodes ``k_neighbors`` and ``max_distance_km`` so that
-    identical neighbor requests reuse the same generated files.
+    identical neighbor requests reuse the same generated files. The distance is
+    capped at :data:`MAX_NEIGHBOR_DISTANCE_KM` (100 km) to keep the generated
+    lookups reasonably small.
     """
+    max_distance_km = min(max_distance_km, MAX_NEIGHBOR_DISTANCE_KM)
     master = _read_master(master_lookup)
     neighbors_dir = _neighbor_lookup_dir(master_lookup, k_neighbors, max_distance_km, cache_dir)
     if any(neighbors_dir.glob("*.parquet")):

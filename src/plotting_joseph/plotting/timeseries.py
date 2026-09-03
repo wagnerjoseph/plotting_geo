@@ -392,7 +392,10 @@ class Timeseries:
             neighbors_df["location_id"] == loc_id
         ].copy()
 
-        if max_distance_km and max_distance_km > 0:
+        from ..data import MAX_NEIGHBOR_DISTANCE_KM
+
+        if max_distance_km > 0:
+            max_distance_km = min(max_distance_km, MAX_NEIGHBOR_DISTANCE_KM)
             loc_neighbors = loc_neighbors[
                 loc_neighbors["distance_km"] <= max_distance_km
             ]
@@ -503,6 +506,12 @@ class Timeseries:
         k_closest, max_distance_km = (0, 0)
         if add_closest_points is not None:
             k_closest, max_distance_km = add_closest_points
+
+        # Cap the neighbor search distance so lookups stay small.
+        from ..data import MAX_NEIGHBOR_DISTANCE_KM
+
+        if max_distance_km > 0:
+            max_distance_km = min(max_distance_km, MAX_NEIGHBOR_DISTANCE_KM)
 
         # --- Generate lookup tables from the master lookup (on demand) ---
         if lookup_tables is None and master_lookup is not None:

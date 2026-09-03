@@ -28,6 +28,9 @@ Returns a list of matplotlib figures (one per location).
 > `neighbor_lookups/` folder next to the master lookup; `countries.pkl` and
 > `location_ids.parquet` are written next to the master file itself. If
 > `lookup_tables` is provided it takes precedence over `master_lookup`.
+>
+> The neighbor search distance is capped at **100 km** to keep the generated
+> lookup files small — a larger `max_km` is silently clamped to 100.
 
 ### var-spec options
 
@@ -84,7 +87,7 @@ Timeseries.plot_time_series(
          "add_second_axis": True, "compute_corr": True},
     ],
     master_lookup="lookup_tables/location_id_to_tile_id.parquet",
-    add_closest_points=(4, 300.0),
+    add_closest_points=(4, 100.0),
     save_dir="figures",
 )
 ```
