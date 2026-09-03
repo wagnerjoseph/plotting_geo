@@ -10,13 +10,9 @@ tables they rely on.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-
-if TYPE_CHECKING:
-    from .config import LookupTableConfig, LookupTables
 
 # Canonical name -> list of acceptable source column names (auto-detected).
 DEFAULT_ALIASES: dict[str, list[str]] = {
@@ -353,26 +349,42 @@ class LookupTableCreator:
         return output_dir
 
 
-def _lookup_cache_dir(cfg) -> Path:
-    """Return (and create) the directory where generated lookups are cached."""
-    if cfg.cache_dir is not None:
-        d = Path(cfg.cache_dir)
+def _format_number(x: float) -> str:
+    """Format a number consistently for use inside a lookup filename."""
+    return f"{x:.6f}".rstrip("0").rstrip(".")
+
+
+def _grid_lookup_name(grid_sampling: float, extent, k: int) -> str:
+    """Unique, human-readable filename encoding every geometric parameter."""
+    lon_min, lon_max, lat_min, lat_max = extent
+    ext = "_".join(_format_number(v) for v in (lon_min, lon_max, lat_min, lat_max))
+    return f"gridSampling_{grid_sampling}_extent_{ext}_k{k}.parquet"
+
+
+def _lookup_cache_dir(master_lookup, cache_dir=None) -> Path:
+    """Return (and create) the directory where generated lookups are cached.
+
+    Defaults to a ``generated_lookups`` folder next to the master lookup so
+    lookups persist and are reused across sessions.
+    """
+    if cache_dir is not None:
+        d = Path(cache_dir)
         d.mkdir(parents=True, exist_ok=True)
         return d
-    import tempfile
+    base = Path(master_lookup).resolve().parent
+    d = base / "generated_lookups"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
-    return Path(tempfile.mkdtemp(prefix="plotting_joseph_"))
 
-
-def _read_master(cfg) -> pd.DataFrame:
+def _read_master(master_lookup) -> pd.DataFrame:
     """Read the master lookup and expose canonical ``location_id/lat/lon/tile_id``."""
-    if cfg.master_lookup is None:
+    if master_lookup is None:
         raise ValueError(
-            "No lookup tables configured. Provide a 'master_lookup' path "
-            "(a location_id -> tile_id parquet with lat/lon) via "
-            "LookupTableConfig(master_lookup=...) or pass lookup paths directly."
+            "No lookup tables configured. Pass 'master_lookup' (a "
+            "location_id -> tile_id parquet with lat/lon) to the plotting call."
         )
-    master = pd.read_parquet(cfg.master_lookup)
+    master = pd.read_parquet(master_lookup)
     if not {"location_id", "lat", "lon"} <= set(master.columns):
         raise ValueError(
             "master_lookup must contain 'location_id', 'lat' and 'lon' columns. "
@@ -383,24 +395,26 @@ def _read_master(cfg) -> pd.DataFrame:
     return master
 
 
-def ensure_location_ids(cfg) -> Path:
-    """Build a canonical ``location_ids.parquet`` from the master lookup."""
-    master = _read_master(cfg)
-    d = _lookup_cache_dir(cfg)
+def ensure_location_ids(master_lookup, cache_dir=None) -> Path:
+    """Build (or reuse) a canonical ``location_ids.parquet`` from the master."""
+    master = _read_master(master_lookup)
+    d = _lookup_cache_dir(master_lookup, cache_dir)
     out = d / "location_ids.parquet"
     if not out.exists():
         master[["location_id", "lat", "lon", "tile_id"]].to_parquet(out, index=False)
     return out
 
 
-def ensure_country_lookup(cfg, force: bool = False) -> Path:
+def ensure_country_lookup(
+    master_lookup, cache_dir=None, force: bool = False
+) -> Path:
     """Return a ``{location_id: country}`` pickle, generating it if missing.
 
     The lookup is built from the web (reverse geocoding) when it does not exist
     yet, unless ``force=False`` and it is already cached.
     """
-    master = _read_master(cfg)
-    d = _lookup_cache_dir(cfg)
+    master = _read_master(master_lookup)
+    d = _lookup_cache_dir(master_lookup, cache_dir)
     out = d / "countries.pkl"
     if out.exists() and not force:
         return out
@@ -411,85 +425,89 @@ def ensure_country_lookup(cfg, force: bool = False) -> Path:
     return out
 
 
-def ensure_grid_lookup(cfg) -> Path:
-    """Build (or reuse) a ``..._gridSampling_<res>_k1.parquet`` map lookup.
+def ensure_grid_lookup(
+    master_lookup,
+    grid_sampling: float,
+    extent: tuple[float, float, float, float] = (-180.0, 180.0, -60.0, 85.0),
+    k: int = 1,
+    cache_dir=None,
+) -> Path:
+    """Build (or reuse) the map lookup for the given geometric parameters.
 
-    The grid mapping is derived from the lat/lon of the master lookup and the
-    ``grid_sampling`` / ``extent`` of the config.
+    The lookup maps ``location_id`` -> ``pixel_id`` on a grid of resolution
+    ``grid_sampling`` over ``extent``. For ``k > 1`` each pixel stores the list
+    of locations aggregated into it.
+
+    The filename encodes ``grid_sampling``, ``extent`` and ``k`` so that a
+    lookup built for one set of parameters is reused for identical calls.
     """
-    if cfg.grid_sampling is None or cfg.grid_sampling <= 0:
+    if grid_sampling is None or grid_sampling <= 0:
         raise ValueError(
-            "plot_map needs a grid_sampling (degrees). Set "
-            "LookupTableConfig(grid_sampling=...)."
+            "plot_map needs a positive grid_sampling (degrees) to build a grid lookup."
         )
-    master = _read_master(cfg)
-    d = _lookup_cache_dir(cfg)
-    gs = cfg.grid_sampling
-    out = d / f"gridSampling_{gs}_k1.parquet"
+    master = _read_master(master_lookup)
+    d = _lookup_cache_dir(master_lookup, cache_dir)
+    out = d / _grid_lookup_name(grid_sampling, extent, k)
     if out.exists():
         return out
 
-    lon_min, lon_max, lat_min, lat_max = cfg.extent
-    n_lon = int(round((lon_max - lon_min) / gs))
-    n_lat = int(round((lat_max - lat_min) / gs))
+    lon_min, lon_max, lat_min, lat_max = extent
+    n_lon = int(round((lon_max - lon_min) / grid_sampling))
+    n_lat = int(round((lat_max - lat_min) / grid_sampling))
 
     lon = master["lon"].to_numpy(dtype=float)
     lat = master["lat"].to_numpy(dtype=float)
-    col = np.floor((lon - lon_min) / gs).astype(int)
-    row = np.floor((lat_max - lat) / gs).astype(int)
-    pixel = np.where(
-        (row >= 0) & (row < n_lat) & (col >= 0) & (col < n_lon),
-        row * n_lon + col,
-        -1,
-    )
-    grid_lut = pd.DataFrame(
-        {"location_id": master["location_id"].to_numpy(), "pixel_id": pixel}
-    )
+    col = np.floor((lon - lon_min) / grid_sampling).astype(int)
+    row = np.floor((lat_max - lat) / grid_sampling).astype(int)
+    valid = (row >= 0) & (row < n_lat) & (col >= 0) & (col < n_lon)
+    pixel = np.where(valid, row * n_lon + col, -1)
+
+    if k == 1:
+        grid_lut = pd.DataFrame(
+            {"location_id": master["location_id"].to_numpy(), "pixel_id": pixel}
+        )
+    else:
+        df = pd.DataFrame(
+            {
+                "location_id": master["location_id"].to_numpy(),
+                "pixel_id": pixel,
+            }
+        ).query("pixel_id >= 0")
+        grid_lut = df.groupby("pixel_id")["location_id"].apply(list).reset_index()
+        grid_lut = grid_lut.rename(columns={"location_id": "location_ids"})
+        grid_lut["pixel_id"] = grid_lut["pixel_id"].astype(int)
+
     grid_lut.to_parquet(out, index=False)
     return out
 
 
-def ensure_neighbor_lookup(cfg) -> Path:
-    """Build (or reuse) the per-tile neighbor lookup directory."""
-    _read_master(cfg)
-    d = _lookup_cache_dir(cfg)
-    neighbors_dir = d / "neighbors"
+def ensure_neighbor_lookup(
+    master_lookup,
+    k_neighbors: int,
+    max_distance_km: float,
+    cache_dir=None,
+) -> Path:
+    """Build (or reuse) the per-tile neighbor lookup directory.
+
+    The directory name encodes ``k_neighbors`` and ``max_distance_km`` so that
+    identical neighbor requests reuse the same generated files.
+    """
+    master = _read_master(master_lookup)
+    d = _lookup_cache_dir(master_lookup, cache_dir)
+    neighbors_dir = d / f"neighbors_k{k_neighbors}_maxd{max_distance_km}"
     if any(neighbors_dir.glob("*.parquet")):
         return neighbors_dir
 
     tmp_loc = d / "location_ids_neighbors.parquet"
-    master = _read_master(cfg)
     master[["location_id", "lat", "lon", "tile_id"]].to_parquet(tmp_loc, index=False)
     LookupTableCreator.generate_neighbor_lookup(
         location_ids_path=tmp_loc,
         output_dir=neighbors_dir,
-        k_neighbors=cfg.k_neighbors,
-        max_distance_km=cfg.max_distance_km,
+        k_neighbors=k_neighbors,
+        max_distance_km=max_distance_km,
     )
     return neighbors_dir
 
-
-def resolve_lookup_tables(
-    cfg: "LookupTableConfig | None",
-    need_neighbors: bool = False,
-) -> "LookupTables":
-    """Turn a ``LookupTableConfig`` into a concrete ``LookupTables``.
-
-    Generates countries / neighbors from the master lookup on demand.
-    """
-    from .config import LookupTables
-
-    if cfg is None or cfg.master_lookup is None:
-        return LookupTables()
-
-    location_ids = ensure_location_ids(cfg)
-    countries = ensure_country_lookup(cfg) if cfg.generate_countries else None
-    neighbors_dir = ensure_neighbor_lookup(cfg) if need_neighbors else None
-    return LookupTables(
-        location_ids=location_ids,
-        countries=countries,
-        neighbors_dir=neighbors_dir,
-    )
 
 
 def validate_lookup_tables(lookup_tables) -> list[str]:

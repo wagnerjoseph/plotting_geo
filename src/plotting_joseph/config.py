@@ -47,51 +47,6 @@ class LookupTables:
 
 
 @dataclass
-class LookupTableConfig:
-    """High-level configuration pointing at the **master** location lookup.
-
-    The master lookup is a single parquet file (e.g. ``location_id_to_tile_id``)
-    with at least ``location_id``, ``lat`` and ``lon`` columns and (optionally)
-    ``tile_id``. From this one file every other lookup the plotting functions
-    need can be **generated on demand** if it is missing:
-
-    * countries (for time-series titles) - via reverse geocoding from the web
-    * a grid/map lookup (for ``plot_map``) - built from the lat/lon coordinates
-    * per-tile neighbor lookups (for ``add_closest_points``)
-
-    Generated lookups are cached in ``cache_dir`` (or a temporary directory when
-    not provided).
-
-    Parameters
-    ----------
-    master_lookup : Path | None
-        Parquet with ``location_id``, ``lat``, ``lon`` and (optionally) ``tile_id``.
-    cache_dir : Path | None
-        Where generated lookups are stored for reuse. If None, a temporary
-        directory is used (files are not persisted between runs).
-    grid_sampling : float | None
-        Grid resolution in degrees used to build the map grid lookup.
-    extent : tuple
-        Bounding box ``(lon_min, lon_max, lat_min, lat_max)`` for the map grid
-        lookup. Defaults to a global extent.
-    k_neighbors : int
-        Number of neighbours used when generating the neighbor lookup.
-    max_distance_km : float
-        Maximum neighbour distance (km) used when generating the neighbor lookup.
-    generate_countries : bool
-        Automatically generate the country lookup from the web if it is missing.
-    """
-
-    master_lookup: Path | None = None
-    cache_dir: Path | None = None
-    grid_sampling: float | None = None
-    extent: tuple[float, float, float, float] = (-180.0, 180.0, -60.0, 85.0)
-    k_neighbors: int = 8
-    max_distance_km: float = 300.0
-    generate_countries: bool = True
-
-
-@dataclass
 class Config:
     """Top-level configuration container.
 

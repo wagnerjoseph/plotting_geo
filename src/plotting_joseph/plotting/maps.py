@@ -7,16 +7,12 @@ that maps ``location_id`` -> pixel on a regular grid.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import TwoSlopeNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-if TYPE_CHECKING:
-    from ..config import LookupTableConfig
 
 try:  # cartopy is used only for optional coastlines
     import cartopy.io.shapereader as shpreader  # type: ignore
@@ -110,7 +106,8 @@ def plot_map(
     data: pd.DataFrame,
     var: str,
     lookuptable_path: str | Path | None = None,
-    lookup_config: "LookupTableConfig | None" = None,
+    master_lookup: str | Path | None = None,
+    cache_dir: str | Path | None = None,
     month: str | None = None,
     stat: str = "median",
     title: str | None = None,
@@ -119,6 +116,7 @@ def plot_map(
     center_at_zero: bool = False,
     extent: tuple[float, float, float, float] = (-180, 180, -60, 85),
     grid_sampling: float | None = None,
+    k: int = 1,
     value_range: tuple[float, float] | None = None,
     save_path: str | Path | None = None,
     plot_robust: tuple[float, float] | None = None,
@@ -143,11 +141,15 @@ def plot_map(
         regular grid. The grid resolution is parsed from the filename using
         the pattern ``..._gridSampling_kN.parquet`` (``N`` = number of
         aggregated neighbors, ``1`` for a direct 1:1 mapping). If None, it is
-        auto-generated from ``lookup_config``.
-    lookup_config : LookupTableConfig, optional
-        Points at the master lookup (``location_id`` -> tile with ``lat``/``lon``).
-        When ``lookuptable_path`` is None, the grid/map lookup is built from it
-        on the fly (respecting ``grid_sampling`` and ``extent``).
+        auto-generated from ``master_lookup``.
+    master_lookup : str or Path, optional
+        Master lookup parquet (``location_id`` -> tile with ``lat``/``lon``).
+        Used to auto-build the grid/map lookup when ``lookuptable_path`` is
+        None. The generated lookup is cached (see ``cache_dir``) and reused
+        for identical ``grid_sampling`` / ``extent`` / ``k``.
+    cache_dir : str or Path, optional
+        Where auto-generated lookups are stored/reused. If None, a
+        ``generated_lookups`` folder next to the master lookup is used.
     month : str, optional
         Filter to a specific month (e.g. ``"2020-01"``) using the ``time``
         column. If None, uses all data.
@@ -208,22 +210,30 @@ def plot_map(
 
     # Build the grid/map lookup from the master lookup when none was given.
     if lookuptable_path is None:
-        if lookup_config is None or lookup_config.master_lookup is None:
+        if master_lookup is None:
             raise ValueError(
                 "plot_map needs a lookup table. Pass 'lookuptable_path' directly "
-                "or provide a 'lookup_config' with a 'master_lookup'."
+                "or provide 'master_lookup' to auto-generate one."
             )
         from ..data import ensure_grid_lookup
 
-        # Keep the config's extent unless the caller explicitly overrode it.
-        if grid_sampling is None:
-            grid_sampling = lookup_config.grid_sampling
-        lookuptable_path = ensure_grid_lookup(lookup_config)
+        lookuptable_path = ensure_grid_lookup(
+            master_lookup,
+            grid_sampling=grid_sampling,
+            extent=extent,
+            k=k,
+            cache_dir=cache_dir,
+        )
 
     lut = pd.read_parquet(lookuptable_path)
 
     name_parts = Path(lookuptable_path).stem.split("_")
-    k = int(name_parts[-1][1:] if name_parts[-1].startswith("k") else 1)
+    if k == 1:
+        # honour k parsed from a user-supplied filename when not explicit
+        try:
+            k = int(name_parts[-1][1:] if name_parts[-1].startswith("k") else 1)
+        except ValueError:
+            k = 1
 
     if grid_sampling is None:
         # Try to recover resolution from ..._gridSampling_<res>_kN.parquet

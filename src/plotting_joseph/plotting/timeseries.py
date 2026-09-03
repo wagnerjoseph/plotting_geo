@@ -11,7 +11,6 @@ from __future__ import annotations
 import pickle
 from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -27,9 +26,6 @@ except Exception:  # noqa: BLE001 - optional dependency guard  # pragma: no cove
     _HAS_DASK = False
 
 from ..config import LookupTables
-
-if TYPE_CHECKING:
-    from ..config import LookupTableConfig
 
 
 def _as_pandas(data):
@@ -428,7 +424,9 @@ class Timeseries:
         random_points: tuple[int, int] = (2, 123),
         add_closest_points: tuple[int, float] = (0, 0),
         lookup_tables: LookupTables | None = None,
-        lookup_config: "LookupTableConfig | None" = None,
+        master_lookup: str | Path | None = None,
+        cache_dir: str | Path | None = None,
+        generate_countries: bool = True,
         save_dir: str | Path | None = None,
         figsize: tuple[int, int] = (10, 5),
         font_scale: float = 1.0,
@@ -459,11 +457,14 @@ class Timeseries:
         lookup_tables : LookupTables, optional
             Provides the ``location_ids`` table (for the location->tile_id
             mapping), ``countries`` pickle, and ``neighbors_dir`` directory.
-        lookup_config : LookupTableConfig, optional
-            Alternative to ``lookup_tables``. Points at the master lookup
-            (``location_id`` -> tile with ``lat``/``lon``). The countries lookup
-            (via the web) and, when ``add_closest_points`` is used, the
-            neighbor lookup are generated from it on demand.
+        master_lookup : str or Path, optional
+            Master lookup parquet (``location_id`` -> tile with ``lat``/``lon``).
+            Alternative to ``lookup_tables``. The countries lookup (via the
+            web) and, when ``add_closest_points`` is used, the neighbor lookup
+            are generated on demand from it and cached in ``cache_dir``.
+        cache_dir : str or Path, optional
+            Where auto-generated lookups are stored/reused. If None, a
+            ``generated_lookups`` folder next to the master lookup is used.
         save_dir : str or Path, optional
             Save each location figure as ``{save_dir}/{location_id}.png``.
         figsize : tuple, default=(10, 5)
@@ -506,12 +507,23 @@ class Timeseries:
         if add_closest_points is not None:
             k_closest, max_distance_km = add_closest_points
 
-        # --- Resolve lookup tables (auto-generate from master if configured) ---
-        if lookup_config is not None:
-            from ..data import resolve_lookup_tables
+        # --- Generate lookup tables from the master lookup (on demand) ---
+        if lookup_tables is None and master_lookup is not None:
+            from ..data import ensure_country_lookup, ensure_location_ids, ensure_neighbor_lookup
 
-            lookup_tables = lookup_tables or resolve_lookup_tables(
-                lookup_config, need_neighbors=(k_closest > 0)
+            location_ids_path = ensure_location_ids(master_lookup, cache_dir)
+            countries = (
+                ensure_country_lookup(master_lookup, cache_dir) if generate_countries else None
+            )
+            neighbors_dir = (
+                ensure_neighbor_lookup(master_lookup, k_closest, max_distance_km, cache_dir)
+                if k_closest > 0
+                else None
+            )
+            lookup_tables = LookupTables(
+                location_ids=location_ids_path,
+                countries=countries,
+                neighbors_dir=neighbors_dir,
             )
         lookup_tables = lookup_tables or LookupTables()
 
