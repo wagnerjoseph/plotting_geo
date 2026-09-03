@@ -362,17 +362,33 @@ def _grid_lookup_name(grid_sampling: float, extent, k: int) -> str:
 
 
 def _lookup_cache_dir(master_lookup, cache_dir=None) -> Path:
-    """Return (and create) the directory where generated lookups are cached.
+    """Return (and create) the base directory for generated lookups.
 
-    Defaults to a ``generated_lookups`` folder next to the master lookup so
-    lookups persist and are reused across sessions.
+    Defaults to the folder that contains the master lookup. May be overridden
+    with an explicit ``cache_dir`` (primarily for the public ``ensure_*``
+    helpers).
     """
     if cache_dir is not None:
         d = Path(cache_dir)
         d.mkdir(parents=True, exist_ok=True)
         return d
-    base = Path(master_lookup).resolve().parent
-    d = base / "generated_lookups"
+    return Path(master_lookup).resolve().parent
+
+
+def _map_lookup_dir(master_lookup, cache_dir=None) -> Path:
+    """The folder for map grid lookups (``map_lookups/`` next to the master)."""
+    d = _lookup_cache_dir(master_lookup, cache_dir) / "map_lookups"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _neighbor_lookup_dir(master_lookup, k_neighbors, max_distance_km, cache_dir=None) -> Path:
+    """The per-parameter neighbor lookup folder (``neighbor_lookups/``)."""
+    d = (
+        _lookup_cache_dir(master_lookup, cache_dir)
+        / "neighbor_lookups"
+        / f"neighbors_k{k_neighbors}_maxd{max_distance_km:g}"
+    )
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -446,7 +462,7 @@ def ensure_grid_lookup(
             "plot_map needs a positive grid_sampling (degrees) to build a grid lookup."
         )
     master = _read_master(master_lookup)
-    d = _lookup_cache_dir(master_lookup, cache_dir)
+    d = _map_lookup_dir(master_lookup, cache_dir)
     out = d / _grid_lookup_name(grid_sampling, extent, k)
     if out.exists():
         return out
@@ -493,12 +509,11 @@ def ensure_neighbor_lookup(
     identical neighbor requests reuse the same generated files.
     """
     master = _read_master(master_lookup)
-    d = _lookup_cache_dir(master_lookup, cache_dir)
-    neighbors_dir = d / f"neighbors_k{k_neighbors}_maxd{max_distance_km}"
+    neighbors_dir = _neighbor_lookup_dir(master_lookup, k_neighbors, max_distance_km, cache_dir)
     if any(neighbors_dir.glob("*.parquet")):
         return neighbors_dir
 
-    tmp_loc = d / "location_ids_neighbors.parquet"
+    tmp_loc = _lookup_cache_dir(master_lookup, cache_dir) / "location_ids_neighbors.parquet"
     master[["location_id", "lat", "lon", "tile_id"]].to_parquet(tmp_loc, index=False)
     LookupTableCreator.generate_neighbor_lookup(
         location_ids_path=tmp_loc,

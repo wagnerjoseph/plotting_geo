@@ -119,10 +119,13 @@ lookups are **created on demand**, only when they don't already exist:
 * **neighbors** (for `add_closest_points`) — per-tile nearest neighbors, keyed
   by `k` + `max_distance_km`
 
-Generated lookups are saved automatically to a `generated_lookups/` folder next
-to the master lookup and **reused whenever the same parameters are passed again**.
-The geometric parameters are encoded in the lookup filename, so different
-grids/extents produce separate cached files.
+Generated lookups are saved automatically next to the master lookup — the
+map grid lookups into a `map_lookups/` folder and the neighbors into a
+`neighbor_lookups/` folder (derived lookups like `location_ids.parquet` and
+`countries.pkl` go next to the master file itself). Lookups are **reused
+whenever the same parameters are passed again**; the geometric parameters are
+encoded in the lookup filename, so different grids/extents produce separate
+cached files.
 
 The `ensure_*` helpers (`ensure_location_ids`, `ensure_country_lookup`,
 `ensure_grid_lookup`, `ensure_neighbor_lookup`) expose the same generation for

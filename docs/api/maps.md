@@ -32,9 +32,8 @@ Returns the matplotlib figure.
 
 > The grid lookup is auto-built from `master_lookup` and **reused for identical
 > calls** — the lookup filename encodes `grid_sampling`, `extent` and `k`, so
-> different parameter combinations produce separate cached files. Lookups are
-> saved automatically to a `generated_lookups/` folder next to the master
-> lookup.
+> different parameter combinations produce separate cached files. Map lookups
+> are saved automatically to a `map_lookups/` folder next to the master lookup.
 
 ### Example
 

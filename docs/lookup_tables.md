@@ -19,14 +19,16 @@ and (optionally) `tile_id`. Everything else is derived from it **on demand**:
 * `Timeseries.plot_time_series(..., master_lookup=..., ...)` builds the country
   lookup (from the web) and, with `add_closest_points`, the neighbors.
 
-Generated lookups are saved automatically to a `generated_lookups/` folder next
-to the master lookup and **reused whenever the same parameters are passed
-again**. The geometric parameters are encoded in the filename/dir name, so
-different grids/neighbor requests produce separate cached files:
+Generated lookups are saved automatically next to the master lookup — the map
+grid lookups into a `map_lookups/` folder and the neighbors into a
+`neighbor_lookups/` folder; `location_ids.parquet` and `countries.pkl` go next
+to the master file itself. Lookups are **reused whenever the same parameters
+are passed again**; the geometric parameters are encoded in the filename/dir
+name, so different grids/neighbor requests produce separate cached files:
 
 ```
-generated_lookups/gridSampling_0.5_extent_-180_180_-60_85_k1.parquet
-generated_lookups/neighbors_k8_maxd300/location_id_to_tile_id_0009.parquet
+map_lookups/gridSampling_0.5_extent_-180_180_-60_85_k1.parquet
+neighbor_lookups/neighbors_k8_maxd300/location_id_to_tile_id_0009.parquet
 ```
 
 The same generation is available as reusable helpers:

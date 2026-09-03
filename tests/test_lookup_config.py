@@ -1,5 +1,7 @@
 """Tests for config-less, master-lookup driven auto-generation."""
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -37,6 +39,20 @@ def test_ensure_location_ids(master):
     df = pd.read_parquet(out)
     assert {"location_id", "lat", "lon", "tile_id"} <= set(df.columns)
     assert df["location_id"].is_unique
+
+
+def test_output_layout(master):
+    """location_ids live next to the master; map/neighbors in their folders."""
+    cache, master_path = master
+    loc = ensure_location_ids(master_path, cache)
+    assert loc.parent == Path(master_path).resolve().parent or loc.parent == Path(cache).resolve()
+
+    grid = ensure_grid_lookup(master_path, grid_sampling=0.5, extent=(-25, 25, -15, 15), cache_dir=cache)
+    assert grid.parent.name == "map_lookups"
+
+    nbr = ensure_neighbor_lookup(master_path, k_neighbors=4, max_distance_km=500.0, cache_dir=cache)
+    assert nbr.parent.name == "neighbor_lookups"
+    assert nbr.name.startswith("neighbors_k4_maxd500")
 
 
 def test_ensure_grid_lookup(master):

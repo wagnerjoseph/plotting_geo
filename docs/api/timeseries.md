@@ -24,9 +24,10 @@ Returns a list of matplotlib figures (one per location).
 
 > When `master_lookup` is given the country lookup is auto-generated from the
 > web when it doesn't exist yet, and the neighbor lookup is generated (and
-> reused) when `add_closest_points` is set. Generated lookups are saved to a
-> `generated_lookups/` folder next to the master lookup. If `lookup_tables` is
-> provided it takes precedence over `master_lookup`.
+> reused) when `add_closest_points` is set. Neighbors go into a
+> `neighbor_lookups/` folder next to the master lookup; `countries.pkl` and
+> `location_ids.parquet` are written next to the master file itself. If
+> `lookup_tables` is provided it takes precedence over `master_lookup`.
 
 ### var-spec options
 
