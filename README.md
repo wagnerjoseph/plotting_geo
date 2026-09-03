@@ -62,36 +62,18 @@ plot_time_series(
     location_ids=[2156788],
     var_specs=[
         {"name": "backscatter40", "color": "royalblue"},
-        {
-            "name": "lai",
-            "color": "forestgreen",
-            "add_to": "backscatter40",
-            "add_second_axis": True,
-            "compute_corr": True,
-        },
-    ],
-    save_dir="figures",
-)
-```
-
-The country names shown in the titles come from a lookup that is auto-generated
-from the web (reverse geocoding) when it doesn't exist yet — just point the call
-at your master `location_id_to_tile_id` file:
-
-```python
-Timeseries.plot_time_series(
-    data=df,
-    location_ids=[2156788],
-    var_specs=[
-        {"name": "backscatter40", "color": "royalblue"},
         {"name": "lai", "color": "forestgreen", "add_to": "backscatter40",
          "add_second_axis": True, "compute_corr": True},
     ],
     master_lookup="lookup_tables/location_id_to_tile_id.parquet",
-    add_closest_points=(4, 100.0),   # auto-generates the neighbor lookup too
+    add_closest_points=(4, 100.0),  # auto-generates neighbor lookup for background series
     save_dir="figures",
 )
 ```
+
+Pass a `master_lookup` to auto-generate country titles (via reverse geocoding) and
+neighbor lookups (when `add_closest_points` is set). The basics are `data`,
+`var_specs`, and `save_dir`; `master_lookup` and `add_closest_points` are optional.
 
 ### Plot a global map
 

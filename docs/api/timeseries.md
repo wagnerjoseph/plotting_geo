@@ -70,29 +70,6 @@ plot_time_series(
     location_ids=[2156788, 2156790],
     var_specs=[
         {"name": "backscatter40", "color": "royalblue"},
-        {
-            "name": "lai",
-            "label": "LAI",
-            "color": "forestgreen",
-            "add_to": "backscatter40",
-            "add_second_axis": True,
-            "compute_corr": True,
-        },
-    ],
-    save_dir="figures",
-)
-```
-
-### Example (auto-generated lookups from a master)
-
-```python
-from plotting_joseph import plot_time_series
-
-plot_time_series(
-    data=df,
-    location_ids=[2156788],
-    var_specs=[
-        {"name": "backscatter40", "color": "royalblue"},
         {"name": "lai", "color": "forestgreen", "add_to": "backscatter40",
          "add_second_axis": True, "compute_corr": True},
     ],
@@ -101,6 +78,10 @@ plot_time_series(
     save_dir="figures",
 )
 ```
+
+Pass a `master_lookup` to auto-generate country titles and neighbor lookups.
+The basics are `data`, `var_specs`, and `save_dir`; `master_lookup` and
+`add_closest_points` are optional.
 
 **Alternative (backward-compatible):** `Timeseries.plot_time_series(...)` also works.
 
