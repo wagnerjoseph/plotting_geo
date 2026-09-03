@@ -19,8 +19,8 @@ and (optionally) `tile_id`. Everything else is derived from it **on demand**:
 * `Timeseries.plot_time_series(..., master_lookup=..., ...)` builds the country
   lookup (from the web) and, with `add_closest_points`, the neighbors.
 
-Generated lookups are cached to `cache_dir` (default: `generated_lookups/` next
-to the master lookup) and **reused whenever the same parameters are passed
+Generated lookups are saved automatically to a `generated_lookups/` folder next
+to the master lookup and **reused whenever the same parameters are passed
 again**. The geometric parameters are encoded in the filename/dir name, so
 different grids/neighbor requests produce separate cached files:
 
@@ -37,13 +37,12 @@ from plotting_joseph import (
     ensure_grid_lookup, ensure_neighbor_lookup,
 )
 
-ensure_location_ids("lookup_tables/location_id_to_tile_id.parquet", "lookups/")
-ensure_country_lookup("lookup_tables/location_id_to_tile_id.parquet", "lookups/")
+ensure_location_ids("lookup_tables/location_id_to_tile_id.parquet")
+ensure_country_lookup("lookup_tables/location_id_to_tile_id.parquet")
 ensure_grid_lookup("lookup_tables/location_id_to_tile_id.parquet",
-                   grid_sampling=0.5, extent=(-180, 180, -60, 85), k=1,
-                   cache_dir="lookups/")
+                   grid_sampling=0.5, extent=(-180, 180, -60, 85), k=1)
 ensure_neighbor_lookup("lookup_tables/location_id_to_tile_id.parquet",
-                       k_neighbors=8, max_distance_km=300.0, cache_dir="lookups/")
+                       k_neighbors=8, max_distance_km=300.0)
 ```
 
 The manual workflows below describe the file formats in case you want to build

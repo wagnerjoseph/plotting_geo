@@ -106,7 +106,6 @@ def plot_map(
     data: pd.DataFrame,
     var: str,
     master_lookup: str | Path | None = None,
-    cache_dir: str | Path | None = None,
     month: str | None = None,
     stat: str = "median",
     title: str | None = None,
@@ -114,7 +113,7 @@ def plot_map(
     cmap: str = "viridis",
     center_at_zero: bool = False,
     extent: tuple[float, float, float, float] = (-180, 180, -60, 85),
-    grid_sampling: float | None = None,
+    grid_sampling: float = 0.5,
     k: int = 1,
     value_range: tuple[float, float] | None = None,
     save_path: str | Path | None = None,
@@ -137,12 +136,9 @@ def plot_map(
         Column name of the variable to plot.
     master_lookup : str or Path, (required)
         Master lookup parquet (``location_id`` -> tile with ``lat``/``lon``).
-        The grid/map lookup is built from it (see ``cache_dir``) and reused for
-        identical ``grid_sampling`` / ``extent`` / ``k``. Required; raises a
-        clear error if missing.
-    cache_dir : str or Path, optional
-        Where auto-generated lookups are stored/reused. If None, a
-        ``generated_lookups`` folder next to the master lookup is used.
+        The grid/map lookup is built from it and reused for identical
+        ``grid_sampling`` / ``extent`` / ``k``. Required; raises a clear error
+        if missing.
     month : str, optional
         Filter to a specific month (e.g. ``"2020-01"``) using the ``time``
         column. If None, uses all data.
@@ -158,9 +154,8 @@ def plot_map(
         If True, center the color scale at 0 (symmetric range).
     extent : tuple, default=(-180, 180, -60, 85)
         Bounding box ``(lon_min, lon_max, lat_min, lat_max)``.
-    grid_sampling : float, (required)
-        Grid resolution in degrees used to build the grid lookup. Required;
-        raises a clear error if missing.
+    grid_sampling : float, default=0.5
+        Grid resolution in degrees used to build the grid lookup.
     k : int, default=1
         Number of aggregated neighbors per pixel (``1`` = direct 1:1 mapping).
     value_range : tuple, optional
@@ -208,11 +203,6 @@ def plot_map(
             "plot_map requires 'master_lookup' (a location_id -> tile_id "
             "parquet with lat/lon) to build the map grid lookup."
         )
-    if grid_sampling is None or grid_sampling <= 0:
-        raise ValueError(
-            "plot_map requires a positive 'grid_sampling' (degrees) to build "
-            "the map grid lookup."
-        )
 
     from ..data import ensure_grid_lookup
 
@@ -221,7 +211,6 @@ def plot_map(
         grid_sampling=grid_sampling,
         extent=extent,
         k=k,
-        cache_dir=cache_dir,
     )
 
     lut = pd.read_parquet(lookuptable_path)

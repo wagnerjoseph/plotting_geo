@@ -425,7 +425,6 @@ class Timeseries:
         add_closest_points: tuple[int, float] = (0, 0),
         lookup_tables: LookupTables | None = None,
         master_lookup: str | Path | None = None,
-        cache_dir: str | Path | None = None,
         generate_countries: bool = True,
         save_dir: str | Path | None = None,
         figsize: tuple[int, int] = (10, 5),
@@ -461,10 +460,8 @@ class Timeseries:
             Master lookup parquet (``location_id`` -> tile with ``lat``/``lon``).
             Alternative to ``lookup_tables``. The countries lookup (via the
             web) and, when ``add_closest_points`` is used, the neighbor lookup
-            are generated on demand from it and cached in ``cache_dir``.
-        cache_dir : str or Path, optional
-            Where auto-generated lookups are stored/reused. If None, a
-            ``generated_lookups`` folder next to the master lookup is used.
+            are generated on demand from it and cached in a ``generated_lookups``
+            folder next to the master lookup.
         save_dir : str or Path, optional
             Save each location figure as ``{save_dir}/{location_id}.png``.
         figsize : tuple, default=(10, 5)
@@ -511,12 +508,12 @@ class Timeseries:
         if lookup_tables is None and master_lookup is not None:
             from ..data import ensure_country_lookup, ensure_location_ids, ensure_neighbor_lookup
 
-            location_ids_path = ensure_location_ids(master_lookup, cache_dir)
+            location_ids_path = ensure_location_ids(master_lookup)
             countries = (
-                ensure_country_lookup(master_lookup, cache_dir) if generate_countries else None
+                ensure_country_lookup(master_lookup) if generate_countries else None
             )
             neighbors_dir = (
-                ensure_neighbor_lookup(master_lookup, k_closest, max_distance_km, cache_dir)
+                ensure_neighbor_lookup(master_lookup, k_closest, max_distance_km)
                 if k_closest > 0
                 else None
             )

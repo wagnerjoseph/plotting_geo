@@ -13,8 +13,7 @@ Plots a gridded global map of a variable with a histogram colorbar.
 | `data`            | DataFrame with `location_id` (and optional `time`) + the value column. |
 | `var`             | column name of the value to plot.                                    |
 | `master_lookup`   | *(required)* master lookup (`location_id` -> tile with `lat`/`lon`); the grid lookup is built from it. |
-| `cache_dir`       | where auto-generated lookups are stored/reused (default: `generated_lookups/` next to the master lookup). |
-| `grid_sampling`   | *(required)* grid resolution (°) used to build the grid lookup.       |
+| `grid_sampling`   | grid resolution (°) used to build the grid lookup (default `0.5`).   |
 | `extent`          | `(lon_min, lon_max, lat_min, lat_max)`.                             |
 | `k`               | number of aggregated neighbors per pixel (`1` = 1:1 mapping).       |
 | `month`           | filter to a month (e.g. `"2020-01"`) using the `time` column.         |
@@ -33,7 +32,9 @@ Returns the matplotlib figure.
 
 > The grid lookup is auto-built from `master_lookup` and **reused for identical
 > calls** — the lookup filename encodes `grid_sampling`, `extent` and `k`, so
-> different parameter combinations produce separate cached files.
+> different parameter combinations produce separate cached files. Lookups are
+> saved automatically to a `generated_lookups/` folder next to the master
+> lookup.
 
 ### Example
 
@@ -47,7 +48,6 @@ fig = plot_map(
     extent=(-180, 180, -60, 85),
     grid_sampling=0.5,
     k=1,
-    cache_dir="lookups/",
     plot_robust=(2, 98),
     title="Global Backscatter (2-98%)",
     save_path="figures/global_backscatter.png",

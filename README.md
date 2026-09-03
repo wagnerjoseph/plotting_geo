@@ -83,7 +83,6 @@ Timeseries.plot_time_series(
     ],
     master_lookup="lookup_tables/location_id_to_tile_id.parquet",
     add_closest_points=(4, 300.0),   # auto-generates the neighbor lookup too
-    cache_dir="lookups/",
     save_dir="figures",
 )
 ```
@@ -98,8 +97,7 @@ plot_map(
     var="backscatter40",
     master_lookup="lookup_tables/location_id_to_tile_id.parquet",  # required
     extent=(-180, 180, -60, 85),
-    grid_sampling=0.5,            # required
-    cache_dir="lookups/",
+    grid_sampling=0.5,            # optional, defaults to 0.5
     title="Global Backscatter",
     save_path="figures/global_map.png",
 )
@@ -121,10 +119,10 @@ lookups are **created on demand**, only when they don't already exist:
 * **neighbors** (for `add_closest_points`) — per-tile nearest neighbors, keyed
   by `k` + `max_distance_km`
 
-Generated lookups are cached to `cache_dir` (default: a `generated_lookups/`
-folder next to the master lookup) and **reused whenever the same parameters are
-passed again**. The geometric parameters are encoded in the lookup filename, so
-different grids/extents produce separate cached files.
+Generated lookups are saved automatically to a `generated_lookups/` folder next
+to the master lookup and **reused whenever the same parameters are passed again**.
+The geometric parameters are encoded in the lookup filename, so different
+grids/extents produce separate cached files.
 
 The `ensure_*` helpers (`ensure_location_ids`, `ensure_country_lookup`,
 `ensure_grid_lookup`, `ensure_neighbor_lookup`) expose the same generation for

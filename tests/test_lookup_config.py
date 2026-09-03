@@ -84,7 +84,7 @@ def test_grid_lookup_requires_sampling(master):
 
 
 def test_plot_map_via_master(master):
-    cache, master_path = master
+    _, master_path = master
     master_df = pd.read_parquet(master_path)
     data = pd.DataFrame(
         {
@@ -109,21 +109,30 @@ def test_plot_map_via_master(master):
 def test_plot_map_requires_master(tmp_path):
     data = pd.DataFrame({"location_id": [2000], "backscatter40": [-12.0]})
     with pytest.raises(ValueError, match="master_lookup"):
-        plot_map(data=data, var="backscatter40", grid_sampling=0.5, show_plot=False)
+        plot_map(data=data, var="backscatter40", show_plot=False)
 
 
-def test_plot_map_requires_grid_sampling(master):
-    cache, master_path = master
-    data = pd.DataFrame({"location_id": [2000], "backscatter40": [-12.0]})
-    with pytest.raises(ValueError, match="grid_sampling"):
-        plot_map(
-            data=data,
-            var="backscatter40",
-            master_lookup=master_path,
-            grid_sampling=None,
-            cache_dir=cache,
-            show_plot=False,
-        )
+def test_plot_map_default_grid_sampling(tmp_path, master):
+    _, master_path = master
+    master_df = pd.read_parquet(master_path)
+    data = pd.DataFrame(
+        {
+            "location_id": master_df["location_id"],
+            "backscatter40": np.random.RandomState(1).normal(-12, 3, len(master_df)),
+        }
+    )
+    # plot without grid_sampling -> defaults to 0.5 and builds a cached lookup
+    fig = plot_map(
+        data=data,
+        var="backscatter40",
+        master_lookup=master_path,
+        extent=(-25, 25, -15, 15),
+        show_plot=False,
+    )
+    assert fig is not None
+    import matplotlib.pyplot as plt
+
+    plt.close(fig)
 
 
 def test_timeseries_via_master(master):
@@ -152,7 +161,6 @@ def test_timeseries_via_master(master):
         var_specs=[{"name": "backscatter40", "color": "royalblue"}],
         add_closest_points=(3, 500.0),
         master_lookup=master_path,
-        cache_dir=cache,
         generate_countries=False,
         show_plot=False,
     )
