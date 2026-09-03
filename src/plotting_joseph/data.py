@@ -10,9 +10,13 @@ tables they rely on.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    from .config import LookupTableConfig, LookupTables
 
 # Canonical name -> list of acceptable source column names (auto-detected).
 DEFAULT_ALIASES: dict[str, list[str]] = {
@@ -302,8 +306,6 @@ class LookupTableCreator:
         with columns ``location_id``, ``neighbor_location_id``, ``distance_km``
         and ``rank``.
         """
-        import itertools
-
         try:
             from scipy.spatial import cKDTree
         except ImportError as e:  # pragma: no cover
@@ -315,8 +317,6 @@ class LookupTableCreator:
 
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-
-        km_per_deg = 111.0
 
         for tile_id, tile in loc.groupby("tile_id"):
             coords_rad = np.radians(tile[["lat", "lon"]].to_numpy(dtype=float))
@@ -351,6 +351,145 @@ class LookupTableCreator:
                 )
                 df_rows.to_parquet(output_dir / f"{tile_id}.parquet", index=False)
         return output_dir
+
+
+def _lookup_cache_dir(cfg) -> Path:
+    """Return (and create) the directory where generated lookups are cached."""
+    if cfg.cache_dir is not None:
+        d = Path(cfg.cache_dir)
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+    import tempfile
+
+    return Path(tempfile.mkdtemp(prefix="plotting_joseph_"))
+
+
+def _read_master(cfg) -> pd.DataFrame:
+    """Read the master lookup and expose canonical ``location_id/lat/lon/tile_id``."""
+    if cfg.master_lookup is None:
+        raise ValueError(
+            "No lookup tables configured. Provide a 'master_lookup' path "
+            "(a location_id -> tile_id parquet with lat/lon) via "
+            "LookupTableConfig(master_lookup=...) or pass lookup paths directly."
+        )
+    master = pd.read_parquet(cfg.master_lookup)
+    if not {"location_id", "lat", "lon"} <= set(master.columns):
+        raise ValueError(
+            "master_lookup must contain 'location_id', 'lat' and 'lon' columns. "
+            f"Got: {list(master.columns)}"
+        )
+    if "tile_id" not in master.columns:
+        master["tile_id"] = "tile0"
+    return master
+
+
+def ensure_location_ids(cfg) -> Path:
+    """Build a canonical ``location_ids.parquet`` from the master lookup."""
+    master = _read_master(cfg)
+    d = _lookup_cache_dir(cfg)
+    out = d / "location_ids.parquet"
+    if not out.exists():
+        master[["location_id", "lat", "lon", "tile_id"]].to_parquet(out, index=False)
+    return out
+
+
+def ensure_country_lookup(cfg, force: bool = False) -> Path:
+    """Return a ``{location_id: country}`` pickle, generating it if missing.
+
+    The lookup is built from the web (reverse geocoding) when it does not exist
+    yet, unless ``force=False`` and it is already cached.
+    """
+    master = _read_master(cfg)
+    d = _lookup_cache_dir(cfg)
+    out = d / "countries.pkl"
+    if out.exists() and not force:
+        return out
+
+    tmp_loc = d / "location_ids_for_countries.parquet"
+    master[["location_id", "lat", "lon"]].to_parquet(tmp_loc, index=False)
+    LookupTableCreator.generate_country_lookup(tmp_loc, out)
+    return out
+
+
+def ensure_grid_lookup(cfg) -> Path:
+    """Build (or reuse) a ``..._gridSampling_<res>_k1.parquet`` map lookup.
+
+    The grid mapping is derived from the lat/lon of the master lookup and the
+    ``grid_sampling`` / ``extent`` of the config.
+    """
+    if cfg.grid_sampling is None or cfg.grid_sampling <= 0:
+        raise ValueError(
+            "plot_map needs a grid_sampling (degrees). Set "
+            "LookupTableConfig(grid_sampling=...)."
+        )
+    master = _read_master(cfg)
+    d = _lookup_cache_dir(cfg)
+    gs = cfg.grid_sampling
+    out = d / f"gridSampling_{gs}_k1.parquet"
+    if out.exists():
+        return out
+
+    lon_min, lon_max, lat_min, lat_max = cfg.extent
+    n_lon = int(round((lon_max - lon_min) / gs))
+    n_lat = int(round((lat_max - lat_min) / gs))
+
+    lon = master["lon"].to_numpy(dtype=float)
+    lat = master["lat"].to_numpy(dtype=float)
+    col = np.floor((lon - lon_min) / gs).astype(int)
+    row = np.floor((lat_max - lat) / gs).astype(int)
+    pixel = np.where(
+        (row >= 0) & (row < n_lat) & (col >= 0) & (col < n_lon),
+        row * n_lon + col,
+        -1,
+    )
+    grid_lut = pd.DataFrame(
+        {"location_id": master["location_id"].to_numpy(), "pixel_id": pixel}
+    )
+    grid_lut.to_parquet(out, index=False)
+    return out
+
+
+def ensure_neighbor_lookup(cfg) -> Path:
+    """Build (or reuse) the per-tile neighbor lookup directory."""
+    _read_master(cfg)
+    d = _lookup_cache_dir(cfg)
+    neighbors_dir = d / "neighbors"
+    if any(neighbors_dir.glob("*.parquet")):
+        return neighbors_dir
+
+    tmp_loc = d / "location_ids_neighbors.parquet"
+    master = _read_master(cfg)
+    master[["location_id", "lat", "lon", "tile_id"]].to_parquet(tmp_loc, index=False)
+    LookupTableCreator.generate_neighbor_lookup(
+        location_ids_path=tmp_loc,
+        output_dir=neighbors_dir,
+        k_neighbors=cfg.k_neighbors,
+        max_distance_km=cfg.max_distance_km,
+    )
+    return neighbors_dir
+
+
+def resolve_lookup_tables(
+    cfg: "LookupTableConfig | None",
+    need_neighbors: bool = False,
+) -> "LookupTables":
+    """Turn a ``LookupTableConfig`` into a concrete ``LookupTables``.
+
+    Generates countries / neighbors from the master lookup on demand.
+    """
+    from .config import LookupTables
+
+    if cfg is None or cfg.master_lookup is None:
+        return LookupTables()
+
+    location_ids = ensure_location_ids(cfg)
+    countries = ensure_country_lookup(cfg) if cfg.generate_countries else None
+    neighbors_dir = ensure_neighbor_lookup(cfg) if need_neighbors else None
+    return LookupTables(
+        location_ids=location_ids,
+        countries=countries,
+        neighbors_dir=neighbors_dir,
+    )
 
 
 def validate_lookup_tables(lookup_tables) -> list[str]:

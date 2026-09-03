@@ -7,12 +7,16 @@ that maps ``location_id`` -> pixel on a regular grid.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import TwoSlopeNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+if TYPE_CHECKING:
+    from ..config import LookupTableConfig
 
 try:  # cartopy is used only for optional coastlines
     import cartopy.io.shapereader as shpreader  # type: ignore
@@ -105,7 +109,8 @@ def _make_title(var: str, stat: str, month: str | None = None, k: int = 1) -> st
 def plot_map(
     data: pd.DataFrame,
     var: str,
-    lookuptable_path: str | Path,
+    lookuptable_path: str | Path | None = None,
+    lookup_config: "LookupTableConfig | None" = None,
     month: str | None = None,
     stat: str = "median",
     title: str | None = None,
@@ -133,12 +138,16 @@ def plot_map(
         columns and the variable to plot.
     var : str
         Column name of the variable to plot.
-    lookuptable_path : str or Path
+    lookuptable_path : str or Path, optional
         Path to the lookup table mapping ``location_id`` -> ``pixel_id`` on a
         regular grid. The grid resolution is parsed from the filename using
         the pattern ``..._gridSampling_kN.parquet`` (``N`` = number of
-        aggregated neighbors, ``1`` for a direct 1:1 mapping). See
-        :doc:`/lookup_tables` for details.
+        aggregated neighbors, ``1`` for a direct 1:1 mapping). If None, it is
+        auto-generated from ``lookup_config``.
+    lookup_config : LookupTableConfig, optional
+        Points at the master lookup (``location_id`` -> tile with ``lat``/``lon``).
+        When ``lookuptable_path`` is None, the grid/map lookup is built from it
+        on the fly (respecting ``grid_sampling`` and ``extent``).
     month : str, optional
         Filter to a specific month (e.g. ``"2020-01"``) using the ``time``
         column. If None, uses all data.
@@ -196,6 +205,20 @@ def plot_map(
         )
 
     data_sub = df[["location_id", var]]
+
+    # Build the grid/map lookup from the master lookup when none was given.
+    if lookuptable_path is None:
+        if lookup_config is None or lookup_config.master_lookup is None:
+            raise ValueError(
+                "plot_map needs a lookup table. Pass 'lookuptable_path' directly "
+                "or provide a 'lookup_config' with a 'master_lookup'."
+            )
+        from ..data import ensure_grid_lookup
+
+        # Keep the config's extent unless the caller explicitly overrode it.
+        if grid_sampling is None:
+            grid_sampling = lookup_config.grid_sampling
+        lookuptable_path = ensure_grid_lookup(lookup_config)
 
     lut = pd.read_parquet(lookuptable_path)
 

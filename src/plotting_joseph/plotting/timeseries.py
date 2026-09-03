@@ -11,6 +11,7 @@ from __future__ import annotations
 import pickle
 from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -26,6 +27,9 @@ except Exception:  # noqa: BLE001 - optional dependency guard  # pragma: no cove
     _HAS_DASK = False
 
 from ..config import LookupTables
+
+if TYPE_CHECKING:
+    from ..config import LookupTableConfig
 
 
 def _as_pandas(data):
@@ -424,6 +428,7 @@ class Timeseries:
         random_points: tuple[int, int] = (2, 123),
         add_closest_points: tuple[int, float] = (0, 0),
         lookup_tables: LookupTables | None = None,
+        lookup_config: "LookupTableConfig | None" = None,
         save_dir: str | Path | None = None,
         figsize: tuple[int, int] = (10, 5),
         font_scale: float = 1.0,
@@ -454,6 +459,11 @@ class Timeseries:
         lookup_tables : LookupTables, optional
             Provides the ``location_ids`` table (for the location->tile_id
             mapping), ``countries`` pickle, and ``neighbors_dir`` directory.
+        lookup_config : LookupTableConfig, optional
+            Alternative to ``lookup_tables``. Points at the master lookup
+            (``location_id`` -> tile with ``lat``/``lon``). The countries lookup
+            (via the web) and, when ``add_closest_points`` is used, the
+            neighbor lookup are generated from it on demand.
         save_dir : str or Path, optional
             Save each location figure as ``{save_dir}/{location_id}.png``.
         figsize : tuple, default=(10, 5)
@@ -490,6 +500,19 @@ class Timeseries:
         import matplotlib.pyplot as plt
 
         data = _as_pandas(data)
+
+        # --- Prepare neighbor request ---
+        k_closest, max_distance_km = (0, 0)
+        if add_closest_points is not None:
+            k_closest, max_distance_km = add_closest_points
+
+        # --- Resolve lookup tables (auto-generate from master if configured) ---
+        if lookup_config is not None:
+            from ..data import resolve_lookup_tables
+
+            lookup_tables = lookup_tables or resolve_lookup_tables(
+                lookup_config, need_neighbors=(k_closest > 0)
+            )
         lookup_tables = lookup_tables or LookupTables()
 
         # --- Select locations ---
@@ -504,13 +527,8 @@ class Timeseries:
             ["location_id", "time"]
         )
 
-        # --- Prepare neighbor lookup ---
-        k_closest, max_distance_km = (0, 0)
         locid_to_tile = {}
         neighbors_by_tile = {}
-
-        if add_closest_points is not None:
-            k_closest, max_distance_km = add_closest_points
 
         if k_closest > 0:
             if lookup_tables.location_ids is None:
