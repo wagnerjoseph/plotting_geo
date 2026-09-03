@@ -293,12 +293,7 @@ def plot_map(
         markers_to_plot = add_marker if isinstance(add_marker, list) else [add_marker]
         for marker_style, marker_location_id in markers_to_plot:
             if marker_location_id in location_to_pixel.index:
-                marker_pixels = location_to_pixel.loc[marker_location_id]
-                marker_pixel = (
-                    marker_pixels.iloc[0]
-                    if hasattr(marker_pixels, "iloc")
-                    else marker_pixels[0]
-                )
+                marker_pixel = int(location_to_pixel.loc[marker_location_id])
                 row = marker_pixel // n_lon
                 col = marker_pixel % n_lon
                 lon = lon_min + (col + 0.5) * grid_sampling
@@ -373,12 +368,7 @@ def plot_map(
         marker_values = []
         for marker_style, marker_location_id in markers_to_plot:
             if marker_location_id in location_to_pixel.index:
-                marker_pixels = location_to_pixel.loc[marker_location_id]
-                marker_pixel = (
-                    marker_pixels.iloc[0]
-                    if hasattr(marker_pixels, "iloc")
-                    else marker_pixels[0]
-                )
+                marker_pixel = int(location_to_pixel.loc[marker_location_id])
                 row = marker_pixel // n_lon
                 col = marker_pixel % n_lon
                 marker_val = image[row, col]
